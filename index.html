@@ -7,28 +7,27 @@
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; line-height: 1.4; }
     h1 { font-size: 20px; margin: 0 0 12px; }
-    .tabs { display: flex; gap: 8px; margin: 12px 0 16px; }
-    .tab { padding: 10px 12px; border: 1px solid #ccc; border-radius: 10px; background: #f7f7f7; cursor: pointer; }
-    .tab.active { background: #111; color: #fff; border-color: #111; }
-    .panel { display: none; padding: 16px; border: 1px solid #ddd; border-radius: 12px; }
-    .panel.active { display: block; }
-    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
-    select, input { padding: 10px; border: 1px solid #ccc; border-radius: 10px; font-size: 14px; }
-    button { padding: 10px 12px; border: 0; border-radius: 10px; background: #111; color: #fff; cursor: pointer; }
-    button.secondary { background: #444; }
-    button.danger { background: #b00020; }
+    .tabs { display:flex; gap:8px; margin:12px 0 16px; }
+    .tab { padding:10px 12px; border:1px solid #ccc; border-radius:10px; background:#f7f7f7; cursor:pointer; }
+    .tab.active { background:#111; color:#fff; border-color:#111; }
+    .panel { display:none; padding:16px; border:1px solid #ddd; border-radius:12px; }
+    .panel.active { display:block; }
+    .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:10px 0; }
+    select, input { padding:10px; border:1px solid #ccc; border-radius:10px; font-size:14px; }
+    button { padding:10px 12px; border:0; border-radius:10px; background:#111; color:#fff; cursor:pointer; }
+    button.danger { background:#b00020; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
-    .warn { color: #b00020; font-weight: 600; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
-    .small { font-size: 12px; color: #555; }
-    .card { border: 1px solid #eee; border-radius: 12px; padding: 12px; margin: 10px 0; background: #fafafa; }
+    .warn { color:#b00020; font-weight:600; }
+    table { border-collapse:collapse; width:100%; }
+    th, td { border-bottom:1px solid #eee; padding:8px; text-align:left; }
+    .small { font-size:12px; color:#555; }
+    .card { border:1px solid #eee; border-radius:12px; padding:12px; margin:10px 0; background:#fafafa; }
   </style>
 </head>
 <body>
   <h1>마니또 추첨 (본인 제외 + 중복 없음)</h1>
   <div class="small">
-    운영자가 “매칭 생성” 후 각자에게 개인코드를 DM으로 전달하세요. 참가자는 이름+코드로 본인 결과만 확인합니다.
+    운영자(1명)가 로컬에서 “매칭 생성”을 1번 실행하고, 생성된 JSON을 이 파일 상단에 붙여넣은 뒤 GitHub Pages에 업로드하세요.
   </div>
 
   <div class="tabs">
@@ -39,13 +38,12 @@
   <div class="panel active" id="organizer">
     <div class="card">
       <div class="row">
-        <button id="btnGenerate">매칭 생성</button>
-        <button class="secondary" id="btnDownload">참가자용 HTML 다운로드</button>
+        <button id="btnGenerate">매칭 생성(로컬에서만)</button>
         <button class="danger" id="btnReset">초기화</button>
       </div>
       <div class="small">
-        - “참가자용 HTML 다운로드”는 지금 생성된 암호화 데이터를 포함한 파일을 내려받습니다.<br/>
-        - 참가자용 파일은 운영자 탭도 보일 수 있지만, 개인코드 없이는 결과 복호화가 되지 않습니다.
+        - 생성 후 아래에 뜨는 JSON을 복사해서, 파일 상단의 <span class="mono">PASTE_ENCRYPTED_HERE</span> / <span class="mono">PASTE_CODES_HERE</span> 자리에 붙여넣으세요.<br/>
+        - 그 다음 GitHub Pages에 올리면 참가자는 결과 조회만 합니다.
       </div>
     </div>
 
@@ -55,9 +53,20 @@
     </div>
 
     <div class="card">
-      <h2 style="font-size:16px;margin:0 0 8px;">생성된 암호화 데이터</h2>
-      <div class="small">참가자용 파일에 포함됩니다.</div>
-      <div id="encryptedDump" class="mono"></div>
+      <h2 style="font-size:16px;margin:0 0 8px;">암호화 데이터(JSON)</h2>
+      <div class="small">아래 내용을 그대로 복사해서 파일 상단에 붙여넣기</div>
+      <div style="margin-top:8px;">
+        <div class="small">1) ENCRYPTED:</div>
+        <textarea id="dumpEncrypted" class="mono" style="width:100%;height:180px;"></textarea>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="small">2) CODES:</div>
+        <textarea id="dumpCodes" class="mono" style="width:100%;height:160px;"></textarea>
+      </div>
+      <div class="row">
+        <button id="btnCopyEncrypted">ENCRYPTED 복사</button>
+        <button id="btnCopyCodes">CODES 복사</button>
+      </div>
     </div>
   </div>
 
@@ -83,17 +92,85 @@
   </div>
 
 <script>
-/** 11명(전혜원 추가 반영) */
+/** 참가자 11명 */
 const NAMES = [
   "김구선","김성태","김영신","김재윤","이체","황인미",
   "정대호","정유경","최은선","최정선","전혜원"
 ];
 
-// 참가자용으로 저장될 암호화 데이터 (name -> {salt, iv, ct})
-let ENCRYPTED = null;
-// 운영자용 개인코드 (name -> code)
-let CODES = null;
+/**
+ * ✅ GitHub Pages에 올리기 전:
+ * 아래 2개에 운영자가 생성한 JSON을 붙여넣으세요.
+ * - ENCRYPTED: name -> {salt, iv, ct}
+ * - CODES: name -> code  (운영자만 봐야 하지만, 페이지 소스에 포함되므로 “참가자에게 노출될 수 있음”)
+ *
+ * 보안을 조금이라도 올리려면 CODES는 파일에 넣지 말고, 운영자가 DM으로만 전달하세요.
+ * (참가자는 코드만 알면 되므로 CODES를 배포 파일에 포함할 필요가 없습니다.)
+ */
 
+// 1) 여기에 붙여넣기 (배포용에서는 null이 아니어야 참가자 조회 가능)
+let ENCRYPTED = {
+  "김구선": {
+    "salt": "HC24UYQgSmABY5CzLK7zIA==",
+    "iv": "317rCUZYN+vtDCiV",
+    "ct": "IePPcGAtN9ZyDJucW4oDL4q2/s7b6EfrhQ=="
+  },
+  "김성태": {
+    "salt": "5lX8LJYxL+GRdkO8Q+W+nQ==",
+    "iv": "aaREhgOCw68XlimY",
+    "ct": "aEp3udNikdrLWCnzRBgS7qytO9Hiww=="
+  },
+  "김영신": {
+    "salt": "3WXPaTg5oJfwjhfSWtf1bw==",
+    "iv": "rpXalLS1CY1me89O",
+    "ct": "8RPVs+91hurjKgRw+IbOrt/zPRrLsNGaqg=="
+  },
+  "김재윤": {
+    "salt": "nkUoLqDF9CK/yE0mTavnQA==",
+    "iv": "LeTG4HVdkKjTzn7V",
+    "ct": "Eg2QZh+YxH/ON+847upX3EKIHHxj/M1FCA=="
+  },
+  "이체": {
+    "salt": "1ARA8G//kPwiXjfpvDaOlw==",
+    "iv": "M48aTp4ANvmn7Njx",
+    "ct": "d6tjx5AO9WsX1gNYFwmsmz39PJk2/uLS8A=="
+  },
+  "황인미": {
+    "salt": "7wY5r2A+wgHLc7queTwVCw==",
+    "iv": "VE6WBBEFCuDWsv7V",
+    "ct": "UrCow5krAdyKfmeIwUi/WkNad0LsxjuM+g=="
+  },
+  "정대호": {
+    "salt": "XGaz36x6ajfVxwZa51zvlA==",
+    "iv": "YZhpWPKQa1gqBlJn",
+    "ct": "b8Dll4qq4M68I1VrSJ4bAIcJCFNsNXMiJw=="
+  },
+  "정유경": {
+    "salt": "80vmOdWLvY8NehQfncxoTQ==",
+    "iv": "HHuNF+WdBjJSL9Cb",
+    "ct": "liGuwnMXAWmvIHsfjalCR1xmtS9YOR51CA=="
+  },
+  "최은선": {
+    "salt": "o3shqQFWZ6rvAbuFwDXg8w==",
+    "iv": "DSr7cklGei2rryLC",
+    "ct": "B0MI1D7m00qMhJTm0b/mbGwEmjNPJy0XHA=="
+  },
+  "최정선": {
+    "salt": "np/YUX6qF/zIKkWiBKs/Pw==",
+    "iv": "pIQD4fs732EPqj8C",
+    "ct": "s7th9AyOAbihkYfjrB/ya1QdIyqF5W6CHA=="
+  },
+  "전혜원": {
+    "salt": "00vd0Bb3dFwEPsLX0t1aAg==",
+    "iv": "36kvHWVx2wJHe0hA",
+    "ct": "rffL9SWdlrgngDLZbXGD1rMppFx4l9xMaQ=="
+  }
+}; // 운영자 생성 후 붙여넣기
+// 2) 운영자 화면에 표로 보여주려면 붙여넣기 (배포 파일에는 넣지 않아도 됨)
+
+let CODES = null;     // 운영자 생성 후 붙여넣기(배포 시에는 null 권장)
+
+// -------------------- 아래부터 로직 --------------------
 function $(id){ return document.getElementById(id); }
 
 function setTab(tabId){
@@ -104,7 +181,6 @@ function setTab(tabId){
     p.classList.toggle("active", p.id === tabId);
   });
 }
-
 document.querySelectorAll(".tab").forEach(t=>{
   t.addEventListener("click", ()=> setTab(t.dataset.tab));
 });
@@ -128,11 +204,9 @@ function shuffle(arr){
   return arr;
 }
 
-/** derangement 생성: 본인 제외 + 전체 1:1(중복 없음) */
 function makeDerangement(names){
   if(names.length < 2) throw new Error("참가자는 최소 2명 필요");
   const idx = names.map((_,i)=>i);
-
   for(let tries=0; tries<8000; tries++){
     const perm = shuffle([...idx]);
     let ok = true;
@@ -151,7 +225,6 @@ function makeDerangement(names){
 }
 
 function randCode(){
-  // 혼동 문자(0,O,1,I 등) 제외
   const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   let s = "";
   for(let i=0;i<10;i++) s += chars[Math.floor(Math.random()*chars.length)];
@@ -216,39 +289,71 @@ function escapeHtml(s){
 }
 
 function renderCodes(){
-  if(!CODES || !ENCRYPTED) { $("codesTable").innerHTML = ""; return; }
-
+  if(!CODES){
+    $("codesTable").innerHTML = `<div class="small">CODES가 파일에 포함되지 않았습니다(운영자 DM 전달용으로만 관리하는 것을 권장).</div>`;
+    return;
+  }
   let html = "<table><thead><tr><th>이름</th><th>개인코드</th></tr></thead><tbody>";
   for(const n of NAMES){
-    html += `<tr><td>${escapeHtml(n)}</td><td class="mono">${escapeHtml(CODES[n])}</td></tr>`;
+    html += `<tr><td>${escapeHtml(n)}</td><td class="mono">${escapeHtml(String(CODES[n] ?? ""))}</td></tr>`;
   }
   html += "</tbody></table>";
   $("codesTable").innerHTML = html;
-
-  $("encryptedDump").textContent = JSON.stringify(ENCRYPTED, null, 2);
 }
 
-function loadParticipantDataIfEmbedded(){
-  if(window.__MANITTO_DATA__ && window.__MANITTO_CODES__){
-    ENCRYPTED = window.__MANITTO_DATA__;
-    CODES = window.__MANITTO_CODES__;
-    renderCodes(); // 참가자에게 보여도, 코드 없이는 복호화 불가
-  }
+function setDumpAreas(){
+  $("dumpEncrypted").value = ENCRYPTED ? JSON.stringify(ENCRYPTED, null, 2) : "";
+  $("dumpCodes").value = CODES ? JSON.stringify(CODES, null, 2) : "";
+}
+
+async function copyText(el){
+  el.select();
+  el.setSelectionRange(0, el.value.length);
+  await navigator.clipboard.writeText(el.value);
 }
 
 $("btnGenerate").addEventListener("click", async ()=>{
+  // 운영자 로컬에서만 생성한다고 가정
   const mapping = makeDerangement(NAMES);
 
-  CODES = {};
-  for(const n of NAMES) CODES[n] = randCode();
+  const localCodes = {};
+  for(const n of NAMES) localCodes[n] = randCode();
 
-  ENCRYPTED = {};
+  const localEncrypted = {};
   for(const n of NAMES){
-    ENCRYPTED[n] = await encryptFor(CODES[n], mapping[n]);
+    localEncrypted[n] = await encryptFor(localCodes[n], mapping[n]);
   }
 
+  ENCRYPTED = localEncrypted;
+  CODES = localCodes;
+
   renderCodes();
-  alert("매칭 생성 완료. 개인코드를 각자에게 DM으로 전달하세요.");
+  setDumpAreas();
+  alert("생성 완료. 아래 JSON(ENCRYPTED/CODES)을 복사해 파일 상단에 붙여넣은 뒤 배포하세요.");
+});
+
+$("btnReset").addEventListener("click", ()=>{
+  ENCRYPTED = null;
+  CODES = null;
+  $("dumpEncrypted").value = "";
+  $("dumpCodes").value = "";
+  $("codesTable").innerHTML = "";
+  $("result").textContent = "";
+  $("resultErr").textContent = "";
+  $("myCode").value = "";
+  alert("초기화 완료");
+});
+
+$("btnCopyEncrypted").addEventListener("click", async ()=>{
+  if(!$("dumpEncrypted").value){ alert("ENCRYPTED가 비어 있습니다."); return; }
+  await copyText($("dumpEncrypted"));
+  alert("ENCRYPTED 복사 완료");
+});
+
+$("btnCopyCodes").addEventListener("click", async ()=>{
+  if(!$("dumpCodes").value){ alert("CODES가 비어 있습니다."); return; }
+  await copyText($("dumpCodes"));
+  alert("CODES 복사 완료");
 });
 
 $("btnReveal").addEventListener("click", async ()=>{
@@ -256,60 +361,31 @@ $("btnReveal").addEventListener("click", async ()=>{
   $("resultErr").textContent = "";
 
   if(!ENCRYPTED){
-    $("resultErr").textContent = "매칭 데이터가 없습니다. 운영자가 생성한 참가자용 HTML을 사용하세요.";
+    $("resultErr").textContent = "매칭 데이터가 없습니다. 운영자가 생성/배포한 페이지를 사용하세요.";
     return;
   }
+
   const name = $("myName").value;
   const code = $("myCode").value.trim().toUpperCase();
   if(!name || !code){
     $("resultErr").textContent = "이름과 개인코드를 입력하세요.";
     return;
   }
+
   try{
-    const target = await decryptWith(code, ENCRYPTED[name]);
+    const payload = ENCRYPTED[name];
+    if(!payload){ $("resultErr").textContent = "해당 이름의 데이터가 없습니다."; return; }
+
+    const target = await decryptWith(code, payload);
     $("result").textContent = `${name}님의 마니또 대상: ${target}`;
   }catch(e){
     $("resultErr").textContent = "복호화 실패: 코드가 틀렸거나 데이터가 손상되었습니다.";
   }
 });
 
-$("btnReset").addEventListener("click", ()=>{
-  ENCRYPTED = null;
-  CODES = null;
-  $("codesTable").innerHTML = "";
-  $("encryptedDump").textContent = "";
-  $("result").textContent = "";
-  $("resultErr").textContent = "";
-  $("myCode").value = "";
-  alert("초기화 완료");
-});
-
-$("btnDownload").addEventListener("click", ()=>{
-  if(!ENCRYPTED || !CODES){
-    alert("먼저 ‘매칭 생성’을 실행하세요.");
-    return;
-  }
-
-  const html = document.documentElement.outerHTML
-    .replace("</script>\n</body>", `
-window.__MANITTO_DATA__ = ${JSON.stringify(ENCRYPTED)};
-window.__MANITTO_CODES__ = ${JSON.stringify(CODES)};
-<\/script>
-</body>`);
-
-  const blob = new Blob([html], {type: "text/html;charset=utf-8"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "manitto_participant.html";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-});
-
 fillNames();
-loadParticipantDataIfEmbedded();
+renderCodes();
+setDumpAreas();
 </script>
 </body>
 </html>

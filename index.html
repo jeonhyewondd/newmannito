@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>마니또 추첨</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; line-height: 1.4; }
+    h1 { font-size: 20px; margin: 0 0 12px; }
+    .tabs { display: flex; gap: 8px; margin: 12px 0 16px; }
+    .tab { padding: 10px 12px; border: 1px solid #ccc; border-radius: 10px; background: #f7f7f7; cursor: pointer; }
+    .tab.active { background: #111; color: #fff; border-color: #111; }
+    .panel { display: none; padding: 16px; border: 1px solid #ddd; border-radius: 12px; }
+    .panel.active { display: block; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
+    select, input { padding: 10px; border: 1px solid #ccc; border-radius: 10px; font-size: 14px; }
+    button { padding: 10px 12px; border: 0; border-radius: 10px; background: #111; color: #fff; cursor: pointer; }
+    button.secondary { background: #444; }
+    button.danger { background: #b00020; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+    .warn { color: #b00020; font-weight: 600; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
+    .small { font-size: 12px; color: #555; }
+    .card { border: 1px solid #eee; border-radius: 12px; padding: 12px; margin: 10px 0; background: #fafafa; }
+  </style>
+</head>
+<body>
+  <h1>마니또 추첨 (본인 제외 + 중복 없음)</h1>
+  <div class="small">
+    운영자가 “매칭 생성” 후 각자에게 개인코드를 DM으로 전달하세요. 참가자는 이름+코드로 본인 결과만 확인합니다.
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="organizer">운영자</div>
+    <div class="tab" data-tab="participant">참가자</div>
+  </div>
+
+  <div class="panel active" id="organizer">
+    <div class="card">
+      <div class="row">
+        <button id="btnGenerate">매칭 생성</button>
+        <button class="secondary" id="btnDownload">참가자용 HTML 다운로드</button>
+        <button class="danger" id="btnReset">초기화</button>
+      </div>
+      <div class="small">
+        - “참가자용 HTML 다운로드”는 지금 생성된 암호화 데이터를 포함한 파일을 내려받습니다.<br/>
+        - 참가자용 파일은 운영자 탭도 보일 수 있지만, 개인코드 없이는 결과 복호화가 되지 않습니다.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:16px;margin:0 0 8px;">개인코드 목록 (운영자만 DM으로 전달)</h2>
+      <div id="codesTable"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:16px;margin:0 0 8px;">생성된 암호화 데이터</h2>
+      <div class="small">참가자용 파일에 포함됩니다.</div>
+      <div id="encryptedDump" class="mono"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="participant">
+    <div class="card">
+      <div class="row">
+        <label>내 이름</label>
+        <select id="myName"></select>
+      </div>
+      <div class="row">
+        <label>개인코드</label>
+        <input id="myCode" placeholder="운영자에게 받은 코드 입력" autocomplete="off" />
+        <button id="btnReveal">내 마니또 확인</button>
+      </div>
+      <div class="small">코드가 틀리면 복호화가 실패합니다.</div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:16px;margin:0 0 8px;">결과</h2>
+      <div id="result" style="font-size:16px;"></div>
+      <div id="resultErr" class="warn"></div>
+    </div>
+  </div>
+
+<script>
+/** 11명(전혜원 추가 반영) */
+const NAMES = [
+  "김구선","김성태","김영신","김재윤","이체","황인미",
+  "정대호","정유경","최은선","최정선","전혜원"
+];
+
+// 참가자용으로 저장될 암호화 데이터 (name -> {salt, iv, ct})
+let ENCRYPTED = null;
+// 운영자용 개인코드 (name -> code)
+let CODES = null;
+
+function $(id){ return document.getElementById(id); }
+
+function setTab(tabId){
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.classList.toggle("active", t.dataset.tab === tabId);
+  });
+  document.querySelectorAll(".panel").forEach(p=>{
+    p.classList.toggle("active", p.id === tabId);
+  });
+}
+
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click", ()=> setTab(t.dataset.tab));
+});
+
+function fillNames(){
+  const sel = $("myName");
+  sel.innerHTML = "";
+  for(const n of NAMES){
+    const opt = document.createElement("option");
+    opt.value = n;
+    opt.textContent = n;
+    sel.appendChild(opt);
+  }
+}
+
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/** derangement 생성: 본인 제외 + 전체 1:1(중복 없음) */
+function makeDerangement(names){
+  if(names.length < 2) throw new Error("참가자는 최소 2명 필요");
+  const idx = names.map((_,i)=>i);
+
+  for(let tries=0; tries<8000; tries++){
+    const perm = shuffle([...idx]);
+    let ok = true;
+    for(let i=0;i<perm.length;i++){
+      if(perm[i] === i){ ok = false; break; }
+    }
+    if(ok){
+      const mapping = {};
+      for(let i=0;i<names.length;i++){
+        mapping[names[i]] = names[perm[i]];
+      }
+      return mapping;
+    }
+  }
+  throw new Error("derangement 생성 실패. 다시 시도하세요.");
+}
+
+function randCode(){
+  // 혼동 문자(0,O,1,I 등) 제외
+  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  let s = "";
+  for(let i=0;i<10;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+function strToU8(str){ return new TextEncoder().encode(str); }
+function u8ToStr(u8){ return new TextDecoder().decode(u8); }
+
+function b64(u8){
+  let bin = "";
+  u8.forEach(b=> bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+function unb64(s){
+  const bin = atob(s);
+  const u8 = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+
+async function deriveKey(code, saltU8){
+  const baseKey = await crypto.subtle.importKey(
+    "raw", strToU8(code), "PBKDF2", false, ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: saltU8, iterations: 120000, hash: "SHA-256" },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt","decrypt"]
+  );
+}
+
+async function encryptFor(code, plaintext){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(code, salt);
+  const ctBuf = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    strToU8(plaintext)
+  );
+  return { salt: b64(salt), iv: b64(iv), ct: b64(new Uint8Array(ctBuf)) };
+}
+
+async function decryptWith(code, payload){
+  const salt = unb64(payload.salt);
+  const iv   = unb64(payload.iv);
+  const ct   = unb64(payload.ct);
+  const key  = await deriveKey(code, salt);
+  const ptBuf = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    ct
+  );
+  return u8ToStr(new Uint8Array(ptBuf));
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+function renderCodes(){
+  if(!CODES || !ENCRYPTED) { $("codesTable").innerHTML = ""; return; }
+
+  let html = "<table><thead><tr><th>이름</th><th>개인코드</th></tr></thead><tbody>";
+  for(const n of NAMES){
+    html += `<tr><td>${escapeHtml(n)}</td><td class="mono">${escapeHtml(CODES[n])}</td></tr>`;
+  }
+  html += "</tbody></table>";
+  $("codesTable").innerHTML = html;
+
+  $("encryptedDump").textContent = JSON.stringify(ENCRYPTED, null, 2);
+}
+
+function loadParticipantDataIfEmbedded(){
+  if(window.__MANITTO_DATA__ && window.__MANITTO_CODES__){
+    ENCRYPTED = window.__MANITTO_DATA__;
+    CODES = window.__MANITTO_CODES__;
+    renderCodes(); // 참가자에게 보여도, 코드 없이는 복호화 불가
+  }
+}
+
+$("btnGenerate").addEventListener("click", async ()=>{
+  const mapping = makeDerangement(NAMES);
+
+  CODES = {};
+  for(const n of NAMES) CODES[n] = randCode();
+
+  ENCRYPTED = {};
+  for(const n of NAMES){
+    ENCRYPTED[n] = await encryptFor(CODES[n], mapping[n]);
+  }
+
+  renderCodes();
+  alert("매칭 생성 완료. 개인코드를 각자에게 DM으로 전달하세요.");
+});
+
+$("btnReveal").addEventListener("click", async ()=>{
+  $("result").textContent = "";
+  $("resultErr").textContent = "";
+
+  if(!ENCRYPTED){
+    $("resultErr").textContent = "매칭 데이터가 없습니다. 운영자가 생성한 참가자용 HTML을 사용하세요.";
+    return;
+  }
+  const name = $("myName").value;
+  const code = $("myCode").value.trim().toUpperCase();
+  if(!name || !code){
+    $("resultErr").textContent = "이름과 개인코드를 입력하세요.";
+    return;
+  }
+  try{
+    const target = await decryptWith(code, ENCRYPTED[name]);
+    $("result").textContent = `${name}님의 마니또 대상: ${target}`;
+  }catch(e){
+    $("resultErr").textContent = "복호화 실패: 코드가 틀렸거나 데이터가 손상되었습니다.";
+  }
+});
+
+$("btnReset").addEventListener("click", ()=>{
+  ENCRYPTED = null;
+  CODES = null;
+  $("codesTable").innerHTML = "";
+  $("encryptedDump").textContent = "";
+  $("result").textContent = "";
+  $("resultErr").textContent = "";
+  $("myCode").value = "";
+  alert("초기화 완료");
+});
+
+$("btnDownload").addEventListener("click", ()=>{
+  if(!ENCRYPTED || !CODES){
+    alert("먼저 ‘매칭 생성’을 실행하세요.");
+    return;
+  }
+
+  const html = document.documentElement.outerHTML
+    .replace("</script>\n</body>", `
+window.__MANITTO_DATA__ = ${JSON.stringify(ENCRYPTED)};
+window.__MANITTO_CODES__ = ${JSON.stringify(CODES)};
+</script>
+</body>`);
+
+  const blob = new Blob([html], {type: "text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "manitto_participant.html";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+fillNames();
+loadParticipantDataIfEmbedded();
+</script>
+</body>
+</html>

@@ -294,7 +294,7 @@ $("btnDownload").addEventListener("click", ()=>{
     .replace("</script>\n</body>", `
 window.__MANITTO_DATA__ = ${JSON.stringify(ENCRYPTED)};
 window.__MANITTO_CODES__ = ${JSON.stringify(CODES)};
-</script>
+<\/script>
 </body>`);
 
   const blob = new Blob([html], {type: "text/html;charset=utf-8"});

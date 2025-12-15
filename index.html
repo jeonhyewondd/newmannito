@@ -3,113 +3,53 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>마니또 추첨</title>
+  <title>마니또</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; line-height: 1.4; }
-    h1 { font-size: 20px; margin: 0 0 12px; }
-    .tabs { display:flex; gap:8px; margin:12px 0 16px; }
-    .tab { padding:10px 12px; border:1px solid #ccc; border-radius:10px; background:#f7f7f7; cursor:pointer; }
-    .tab.active { background:#111; color:#fff; border-color:#111; }
-    .panel { display:none; padding:16px; border:1px solid #ddd; border-radius:12px; }
-    .panel.active { display:block; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; line-height: 1.45; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    .card { border:1px solid #eee; border-radius:12px; padding:12px; margin:12px 0; background:#fafafa; }
     .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:10px 0; }
     select, input { padding:10px; border:1px solid #ccc; border-radius:10px; font-size:14px; }
     button { padding:10px 12px; border:0; border-radius:10px; background:#111; color:#fff; cursor:pointer; }
-    button.danger { background:#b00020; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
     .warn { color:#b00020; font-weight:600; }
-    table { border-collapse:collapse; width:100%; }
-    th, td { border-bottom:1px solid #eee; padding:8px; text-align:left; }
     .small { font-size:12px; color:#555; }
-    .card { border:1px solid #eee; border-radius:12px; padding:12px; margin:10px 0; background:#fafafa; }
   </style>
 </head>
 <body>
-  <h1>마니또 추첨 (본인 제외 + 중복 없음)</h1>
-  <div class="small">
-    운영자(1명)가 로컬에서 “매칭 생성”을 1번 실행하고, 생성된 JSON을 이 파일 상단에 붙여넣은 뒤 GitHub Pages에 업로드하세요.
+  <h1>마니또 확인</h1>
+  <div class="small">이름 선택 후, 운영자에게 받은 개인코드를 입력하세요.</div>
+
+  <div class="card">
+    <div class="row">
+      <label>내 이름</label>
+      <select id="myName"></select>
+    </div>
+    <div class="row">
+      <label>개인코드</label>
+      <input id="myCode" placeholder="개인코드 입력" autocomplete="off" />
+      <button id="btnReveal">내 마니또 확인</button>
+    </div>
+    <div class="small">코드가 틀리면 복호화가 실패합니다.</div>
   </div>
 
-  <div class="tabs">
-    <div class="tab active" data-tab="organizer">운영자</div>
-    <div class="tab" data-tab="participant">참가자</div>
-  </div>
-
-  <div class="panel active" id="organizer">
-    <div class="card">
-      <div class="row">
-        <button id="btnGenerate">매칭 생성(로컬에서만)</button>
-        <button class="danger" id="btnReset">초기화</button>
-      </div>
-      <div class="small">
-        - 생성 후 아래에 뜨는 JSON을 복사해서, 파일 상단의 <span class="mono">PASTE_ENCRYPTED_HERE</span> / <span class="mono">PASTE_CODES_HERE</span> 자리에 붙여넣으세요.<br/>
-        - 그 다음 GitHub Pages에 올리면 참가자는 결과 조회만 합니다.
-      </div>
-    </div>
-
-    <div class="card">
-      <h2 style="font-size:16px;margin:0 0 8px;">개인코드 목록 (운영자만 DM으로 전달)</h2>
-      <div id="codesTable"></div>
-    </div>
-
-    <div class="card">
-      <h2 style="font-size:16px;margin:0 0 8px;">암호화 데이터(JSON)</h2>
-      <div class="small">아래 내용을 그대로 복사해서 파일 상단에 붙여넣기</div>
-      <div style="margin-top:8px;">
-        <div class="small">1) ENCRYPTED:</div>
-        <textarea id="dumpEncrypted" class="mono" style="width:100%;height:180px;"></textarea>
-      </div>
-      <div style="margin-top:12px;">
-        <div class="small">2) CODES:</div>
-        <textarea id="dumpCodes" class="mono" style="width:100%;height:160px;"></textarea>
-      </div>
-      <div class="row">
-        <button id="btnCopyEncrypted">ENCRYPTED 복사</button>
-        <button id="btnCopyCodes">CODES 복사</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel" id="participant">
-    <div class="card">
-      <div class="row">
-        <label>내 이름</label>
-        <select id="myName"></select>
-      </div>
-      <div class="row">
-        <label>개인코드</label>
-        <input id="myCode" placeholder="운영자에게 받은 코드 입력" autocomplete="off" />
-        <button id="btnReveal">내 마니또 확인</button>
-      </div>
-      <div class="small">코드가 틀리면 복호화가 실패합니다.</div>
-    </div>
-
-    <div class="card">
-      <h2 style="font-size:16px;margin:0 0 8px;">결과</h2>
-      <div id="result" style="font-size:16px;"></div>
-      <div id="resultErr" class="warn"></div>
-    </div>
+  <div class="card">
+    <h2 style="font-size:14px;margin:0 0 8px;">결과</h2>
+    <div id="result" style="font-size:16px;"></div>
+    <div id="resultErr" class="warn"></div>
   </div>
 
 <script>
-/** 참가자 11명 */
 const NAMES = [
   "김구선","김성태","김영신","김재윤","이체","황인미",
   "정대호","정유경","최은선","최정선","전혜원"
 ];
 
 /**
- * ✅ GitHub Pages에 올리기 전:
- * 아래 2개에 운영자가 생성한 JSON을 붙여넣으세요.
- * - ENCRYPTED: name -> {salt, iv, ct}
- * - CODES: name -> code  (운영자만 봐야 하지만, 페이지 소스에 포함되므로 “참가자에게 노출될 수 있음”)
- *
- * 보안을 조금이라도 올리려면 CODES는 파일에 넣지 말고, 운영자가 DM으로만 전달하세요.
- * (참가자는 코드만 알면 되므로 CODES를 배포 파일에 포함할 필요가 없습니다.)
+ * ✅ 여기에 운영자(organizer.html)에서 복사한 ENCRYPTED JSON을 붙여넣으세요.
+ * 예:
+ * let ENCRYPTED = { "김구선": {"salt":"...","iv":"...","ct":"..."}, ... };
  */
-
-// 1) 여기에 붙여넣기 (배포용에서는 null이 아니어야 참가자 조회 가능)
-let ENCRYPTED = {
+let ENCRYPTED = let ENCRYPTED = {
   "김구선": {
     "salt": "HC24UYQgSmABY5CzLK7zIA==",
     "iv": "317rCUZYN+vtDCiV",
@@ -164,27 +104,9 @@ let ENCRYPTED = {
     "salt": "00vd0Bb3dFwEPsLX0t1aAg==",
     "iv": "36kvHWVx2wJHe0hA",
     "ct": "rffL9SWdlrgngDLZbXGD1rMppFx4l9xMaQ=="
-  }
-}; // 운영자 생성 후 붙여넣기
-// 2) 운영자 화면에 표로 보여주려면 붙여넣기 (배포 파일에는 넣지 않아도 됨)
+  };
 
-let CODES = null;     // 운영자 생성 후 붙여넣기(배포 시에는 null 권장)
-
-// -------------------- 아래부터 로직 --------------------
 function $(id){ return document.getElementById(id); }
-
-function setTab(tabId){
-  document.querySelectorAll(".tab").forEach(t=>{
-    t.classList.toggle("active", t.dataset.tab === tabId);
-  });
-  document.querySelectorAll(".panel").forEach(p=>{
-    p.classList.toggle("active", p.id === tabId);
-  });
-}
-document.querySelectorAll(".tab").forEach(t=>{
-  t.addEventListener("click", ()=> setTab(t.dataset.tab));
-});
-
 function fillNames(){
   const sel = $("myName");
   sel.innerHTML = "";
@@ -196,172 +118,39 @@ function fillNames(){
   }
 }
 
-function shuffle(arr){
-  for(let i=arr.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-function makeDerangement(names){
-  if(names.length < 2) throw new Error("참가자는 최소 2명 필요");
-  const idx = names.map((_,i)=>i);
-  for(let tries=0; tries<8000; tries++){
-    const perm = shuffle([...idx]);
-    let ok = true;
-    for(let i=0;i<perm.length;i++){
-      if(perm[i] === i){ ok = false; break; }
-    }
-    if(ok){
-      const mapping = {};
-      for(let i=0;i<names.length;i++){
-        mapping[names[i]] = names[perm[i]];
-      }
-      return mapping;
-    }
-  }
-  throw new Error("derangement 생성 실패. 다시 시도하세요.");
-}
-
-function randCode(){
-  const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let s = "";
-  for(let i=0;i<10;i++) s += chars[Math.floor(Math.random()*chars.length)];
-  return s;
-}
-
 function strToU8(str){ return new TextEncoder().encode(str); }
 function u8ToStr(u8){ return new TextDecoder().decode(u8); }
-
-function b64(u8){
-  let bin = "";
-  u8.forEach(b=> bin += String.fromCharCode(b));
-  return btoa(bin);
-}
 function unb64(s){
   const bin = atob(s);
   const u8 = new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
   return u8;
 }
-
 async function deriveKey(code, saltU8){
-  const baseKey = await crypto.subtle.importKey(
-    "raw", strToU8(code), "PBKDF2", false, ["deriveKey"]
-  );
+  const baseKey = await crypto.subtle.importKey("raw", strToU8(code), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: saltU8, iterations: 120000, hash: "SHA-256" },
+    { name:"PBKDF2", salt:saltU8, iterations:120000, hash:"SHA-256" },
     baseKey,
-    { name: "AES-GCM", length: 256 },
+    { name:"AES-GCM", length:256 },
     false,
-    ["encrypt","decrypt"]
+    ["decrypt"]
   );
 }
-
-async function encryptFor(code, plaintext){
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv   = crypto.getRandomValues(new Uint8Array(12));
-  const key  = await deriveKey(code, salt);
-  const ctBuf = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    strToU8(plaintext)
-  );
-  return { salt: b64(salt), iv: b64(iv), ct: b64(new Uint8Array(ctBuf)) };
-}
-
 async function decryptWith(code, payload){
   const salt = unb64(payload.salt);
   const iv   = unb64(payload.iv);
   const ct   = unb64(payload.ct);
   const key  = await deriveKey(code, salt);
-  const ptBuf = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    key,
-    ct
-  );
+  const ptBuf = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, key, ct);
   return u8ToStr(new Uint8Array(ptBuf));
 }
-
-function escapeHtml(s){
-  return s.replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
-}
-
-function renderCodes(){
-  if(!CODES){
-    $("codesTable").innerHTML = `<div class="small">CODES가 파일에 포함되지 않았습니다(운영자 DM 전달용으로만 관리하는 것을 권장).</div>`;
-    return;
-  }
-  let html = "<table><thead><tr><th>이름</th><th>개인코드</th></tr></thead><tbody>";
-  for(const n of NAMES){
-    html += `<tr><td>${escapeHtml(n)}</td><td class="mono">${escapeHtml(String(CODES[n] ?? ""))}</td></tr>`;
-  }
-  html += "</tbody></table>";
-  $("codesTable").innerHTML = html;
-}
-
-function setDumpAreas(){
-  $("dumpEncrypted").value = ENCRYPTED ? JSON.stringify(ENCRYPTED, null, 2) : "";
-  $("dumpCodes").value = CODES ? JSON.stringify(CODES, null, 2) : "";
-}
-
-async function copyText(el){
-  el.select();
-  el.setSelectionRange(0, el.value.length);
-  await navigator.clipboard.writeText(el.value);
-}
-
-$("btnGenerate").addEventListener("click", async ()=>{
-  // 운영자 로컬에서만 생성한다고 가정
-  const mapping = makeDerangement(NAMES);
-
-  const localCodes = {};
-  for(const n of NAMES) localCodes[n] = randCode();
-
-  const localEncrypted = {};
-  for(const n of NAMES){
-    localEncrypted[n] = await encryptFor(localCodes[n], mapping[n]);
-  }
-
-  ENCRYPTED = localEncrypted;
-  CODES = localCodes;
-
-  renderCodes();
-  setDumpAreas();
-  alert("생성 완료. 아래 JSON(ENCRYPTED/CODES)을 복사해 파일 상단에 붙여넣은 뒤 배포하세요.");
-});
-
-$("btnReset").addEventListener("click", ()=>{
-  ENCRYPTED = null;
-  CODES = null;
-  $("dumpEncrypted").value = "";
-  $("dumpCodes").value = "";
-  $("codesTable").innerHTML = "";
-  $("result").textContent = "";
-  $("resultErr").textContent = "";
-  $("myCode").value = "";
-  alert("초기화 완료");
-});
-
-$("btnCopyEncrypted").addEventListener("click", async ()=>{
-  if(!$("dumpEncrypted").value){ alert("ENCRYPTED가 비어 있습니다."); return; }
-  await copyText($("dumpEncrypted"));
-  alert("ENCRYPTED 복사 완료");
-});
-
-$("btnCopyCodes").addEventListener("click", async ()=>{
-  if(!$("dumpCodes").value){ alert("CODES가 비어 있습니다."); return; }
-  await copyText($("dumpCodes"));
-  alert("CODES 복사 완료");
-});
 
 $("btnReveal").addEventListener("click", async ()=>{
   $("result").textContent = "";
   $("resultErr").textContent = "";
 
   if(!ENCRYPTED){
-    $("resultErr").textContent = "매칭 데이터가 없습니다. 운영자가 생성/배포한 페이지를 사용하세요.";
+    $("resultErr").textContent = "매칭 데이터가 없습니다. 운영자에게 배포본 업데이트를 요청하세요.";
     return;
   }
 
@@ -375,7 +164,6 @@ $("btnReveal").addEventListener("click", async ()=>{
   try{
     const payload = ENCRYPTED[name];
     if(!payload){ $("resultErr").textContent = "해당 이름의 데이터가 없습니다."; return; }
-
     const target = await decryptWith(code, payload);
     $("result").textContent = `${name}님의 마니또 대상: ${target}`;
   }catch(e){
@@ -384,8 +172,6 @@ $("btnReveal").addEventListener("click", async ()=>{
 });
 
 fillNames();
-renderCodes();
-setDumpAreas();
 </script>
 </body>
 </html>
